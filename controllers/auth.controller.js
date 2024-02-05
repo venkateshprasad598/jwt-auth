@@ -3,6 +3,7 @@ const AppError = require("../utils/appError");
 const catchAsync = require("../utils/catchAsync");
 const jwt = require("jsonwebtoken");
 const { promisify } = require("util");
+const sendEmail = require("../utils/email"); // Import the email sending logic
 
 const signToken = (user) => {
   const { name, email } = user;
@@ -57,8 +58,12 @@ const login = catchAsync(async (req, res, next) => {
   const user = await User.findOne({ email }).select("+password");
   //userSchema.methods.correctPassword is defined in USER MODEL (which checks wheather password is correct ot not)
 
-  if (!user || !(await user.correctPassword(password, user.password))) {
-    return next(new AppError("Incorrect email or password", 401));
+  if (!user) {
+    return next(new AppError("Incorrect email address", 404));
+  }
+
+  if (!(await user.correctPassword(password, user.password))) {
+    return next(new AppError("Incorrect password", 401));
   }
   // 3) If everything ok, send token to client
   createSendToken(user, 200, res);
@@ -120,8 +125,56 @@ const protect = catchAsync(async (req, res, next) => {
   next();
 });
 
+// Forgot Password
+const forgetPassword = catchAsync(async (req, res, next) => {
+  const { email } = req.body;
+
+  const user = await User.findOne({ email });
+
+  if (!user) {
+    return next(new AppError("No user found with that email address", 404));
+  }
+
+  const resetToken = user.createPasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+
+  // Create the reset URL with the token
+  const resetURL = `${req.protocol}://${req.get(
+    "host"
+  )}/reset-password/${resetToken}`;
+
+  // Create the email message
+  const message = `Forgot your password? Submit a PATCH request with your new password and passwordConfirm to: ${resetURL}.\nIf you didn't forget your password, please ignore this email.`;
+
+  try {
+    // Send the email
+    await sendEmail({
+      to: user.email,
+      subject: "Your password reset token (valid for 10 minutes)",
+      text: message,
+    });
+
+    res.status(200).json({
+      status: "success",
+      message: "Token sent to email!",
+    });
+  } catch (err) {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+
+    return next(
+      new AppError(
+        "There was an error sending the email. Please try again later!",
+        500
+      )
+    );
+  }
+});
+
 module.exports = {
   signup,
   login,
   protect,
+  forgetPassword,
 };

@@ -7,6 +7,7 @@ const app = express();
 
 //SYSTEM IMPORTS
 const userRouter = require("./routes/userRoutes");
+const authRouter = require("./routes/authRoutes");
 const { globalErrorHandler } = require("./controllers/error.controller");
 
 //MiddleWare
@@ -14,6 +15,7 @@ app.use(express.json());
 
 //Routes
 app.use("/app/v1/users", userRouter);
+app.use("/app/v1/auth", authRouter);
 
 app.all("*", (req, res, next) => {
   // next in middleware takes a paramater which is an error, wherever there is a function after this middleware which accepts err Ex : (err, req, res, next) it jumps to that fucntion by skiping all of the other functions in the middle

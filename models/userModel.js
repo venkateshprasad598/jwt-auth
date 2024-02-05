@@ -32,6 +32,8 @@ const userSchema = new mongoose.Schema({
       message: "Passwords are not the same!",
     },
   },
+  passwordResetToken: String,
+  passwordResetExpires: Date,
 });
 
 //HASHING PASSWORD
@@ -60,6 +62,17 @@ userSchema.methods.correctPassword = async function (
   userPassword
 ) {
   return await bcrypt.compare(candidatePassword, userPassword);
+};
+
+userSchema.methods.createPasswordResetToken = function () {
+  const resetToken = jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.RESET_TOKEN_EXPIRES_IN,
+  });
+
+  this.passwordResetToken = resetToken;
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000; // Token expires in 10 minutes
+
+  return resetToken;
 };
 
 const User = mongoose.model("User", userSchema);

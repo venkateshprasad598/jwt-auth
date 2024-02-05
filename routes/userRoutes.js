@@ -9,12 +9,12 @@ const {
   deleteUser,
 } = require("../controllers/user.controller");
 
-const { signup, login, protect } = require("../controllers/auth.controller");
+const { protect } = require("../controllers/auth.controller");
 
+//this middleware will run before any api's are executed!
+router.use(protect);
 //Routes
-router.post("/signup", signup);
-router.post("/login", login);
-router.route("/").get(protect, getAllUsers).post(createAllUsers);
+router.route("/").get(getAllUsers).post(createAllUsers);
 router.route("/:id").get(getUser).patch(updateUser).delete(deleteUser);
 
 module.exports = router;
